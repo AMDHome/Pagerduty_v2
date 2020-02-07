@@ -1,0 +1,14 @@
+<setup>
+
+    <block title="PagerDuty Incidents">
+        <text>Configure PagerDuty Incidents</text>
+    </block>
+
+    <block title="PagerDuty" endpoint="admin/alert_actions" entity="pagerduty">
+        <input field="param.integration_url">
+            <label>Integration URL</label>
+            <type>text</type>
+        </input>
+    </block>
+
+</setup>
