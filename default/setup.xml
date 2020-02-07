@@ -5,8 +5,8 @@
     </block>
 
     <block title="PagerDuty" endpoint="admin/alert_actions" entity="pagerduty">
-        <input field="param.integration_url">
-            <label>Integration URL</label>
+        <input field="param.integration_key">
+            <label>Integration key</label>
             <type>text</type>
         </input>
     </block>
