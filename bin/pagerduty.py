@@ -12,8 +12,10 @@ def generate_inc(details, key):
     payload = {}
 
     # determine if triggering or resolving
-    eventType = details['search_name'].split()[-1]
-    if eventType != "resolve":
+    eventType = details['search_name'].rsplit(' ', 1)[1]
+    if eventType == "resolve":
+        details['search_name'] = details['search_name'].rsplit(' ', 1)[0]
+    else:
         eventType = "trigger"
 
     # create JSON Payload
