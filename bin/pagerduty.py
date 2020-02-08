@@ -4,29 +4,54 @@ import urllib2
 
 from fnmatch import fnmatch
 
+def generate_payload(details, key):
+    inc = {}
+    payload = {}
 
-def send_notification(payload):
-    settings = payload.get('configuration')
+    payload['summary'] = details['result']['host'] + " " + details['search_name']
+    payload['severity'] = "critical"
+    payload['source'] = details['result']['host']
+    payload['component'] = details['result']['_sourcetype']
+    payload['group'] = details['result']['index']
+    payload['custom_details'] = details['result']
+
+    dedup_key = details['search_name'] + " (Server: " + details['result']['host'] + ")"
+    if len(dedup_key) > 255:
+        dedup_key = dedup_key[0 : 254]
+
+    inc['payload'] = payload
+    inc['routing_key'] = key
+    inc['dedup_key'] = dedup_key
+    inc['event_action'] = "trigger"
+    inc['client'] = "Splunk"
+    inc['client_url'] = details['results_link']
+
+    return inc
+
+
+
+def send_notification(details):
+    settings = details.get('configuration')
     print >> sys.stderr, "DEBUG Sending incident with settings %s" % settings
 
-    url = settings.get('integration_url_override')
+    url = "https://events.pagerduty.com/v2/enqueue"
+    key = settings.get('integration_key_override')
 
-    if not url:
-        url = settings.get('integration_url')
+    if not key:
+        key = settings.get('integration_key')
 
     # check if only the integration key was given
-    if len(url) == 32:
-        url = 'https://events.pagerduty.com/integration/' + url + "/enqueue"
-
-    if not url.startswith("https://"):
-        print >> sys.stderr, "ERROR URL scheme must be https : %s" % (url)
+    if not len(key) == 32:
+        print >> sys.stderr, "ERROR Integration KEY must be 32 characters long"
         return False
 
-    del payload['session_key']
+    del details['session_key']
 
-    body = json.dumps(payload)
+    inc = generate_payload(details, key)
 
-    print >> sys.stderr, 'DEBUG Calling url="%s" with body=%s' % (url, body)
+    body = json.dumps(inc)
+
+    print >> sys.stderr, 'INFO Calling url="%s" with body=%s' % (url, body)
 
     req = urllib2.Request(url, body, {"Content-Type": "application/json"})
 
