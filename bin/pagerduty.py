@@ -4,10 +4,19 @@ import urllib2
 
 from fnmatch import fnmatch
 
-def generate_payload(details, key):
+# generate the JSON for the incident
+# Details: https://v2.developer.pagerduty.com/docs/events-api-v2 
+# Example: https://v2.developer.pagerduty.com/docs/send-an-event-events-api-v2
+def generate_inc(details, key):
     inc = {}
     payload = {}
 
+    # determine if triggering or resolving
+    eventType = details['search_name'].split()[-1]
+    if eventType != "resolve":
+        eventType = "trigger"
+
+    # create JSON Payload
     payload['summary'] = details['result']['host'] + " " + details['search_name']
     payload['severity'] = "critical"
     payload['source'] = details['result']['host']
@@ -19,10 +28,11 @@ def generate_payload(details, key):
     if len(dedup_key) > 255:
         dedup_key = dedup_key[0 : 254]
 
+    # create incident JSON
     inc['payload'] = payload
     inc['routing_key'] = key
     inc['dedup_key'] = dedup_key
-    inc['event_action'] = "trigger"
+    inc['event_action'] = eventType
     inc['client'] = "Splunk"
     inc['client_url'] = details['results_link']
 
@@ -31,6 +41,8 @@ def generate_payload(details, key):
 
 
 def send_notification(details):
+
+    # get integration API key
     settings = details.get('configuration')
     print >> sys.stderr, "DEBUG Sending incident with settings %s" % settings
 
@@ -45,14 +57,15 @@ def send_notification(details):
         print >> sys.stderr, "ERROR Integration KEY must be 32 characters long"
         return False
 
+    # delete session key
     del details['session_key']
 
-    inc = generate_payload(details, key)
-
+    # generate incident json
+    inc = generate_inc(details, key)
     body = json.dumps(inc)
 
+    # send PagerDuty incident info
     print >> sys.stderr, 'INFO Calling url="%s" with body=%s' % (url, body)
-
     req = urllib2.Request(url, body, {"Content-Type": "application/json"})
 
     try:
