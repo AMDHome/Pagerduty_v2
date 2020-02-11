@@ -79,18 +79,18 @@ def send_notification(details):
 
 
     # send PagerDuty incident info
-    print('INFO Calling url="', url, '" with body=', body, file=sys.stderr)
+    print('DEBUG Calling url="{:s}" with body={:s}'.format(url, body.decode()), file=sys.stderr)
     req = urllib.request.Request(url=url, data=body, headers={"Content-Type": "application/json"})
 
     try:
         res = urllib.request.urlopen(req)
-        body = res.read().decode("ascii")
-        print("INFO PagerDuty server responded with HTTP status=", res.code, file=sys.stderr)
-        print("DEBUG PagerDuty server response: {:s}".format(json.dumps(body)), file=sys.stderr)
+        body = res.read().decode("utf-8")
+        print("INFO PagerDuty server responded with HTTP status = {:d}".format(res.code), file=sys.stderr)
+        print("DEBUG PagerDuty server response: {:s}".format(body), file=sys.stderr)
         return 200 <= res.code < 300
     except urllib.error.HTTPError as e:
-        print("ERROR Error sending message:", e, " (", str(dir(e)), ")", file=sys.stderr)
-        print("ERROR Server response:", e.read(), file=sys.stderr)
+        print("ERROR Error sending message: {:s} ({:s})".format(e, str(dir(e))), file=sys.stderr)
+        print("ERROR Server response: {:s}".format(e.read()), file=sys.stderr)
         return False
 
 
