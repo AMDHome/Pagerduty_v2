@@ -1,7 +1,7 @@
 # Pagerduty_v2
 A Custom Pagerduty Integration for splunk
 
-# Examples of `details` passed by Splunk
+## Examples of `details` passed by Splunk
 ``` JSON
 details={
 	"results_link": "http://splunk-test.ucdavis.edu:8000/app/search/search?q=%7Cloadjob%20scheduler__admin__search__RMD5afe10cbbfdadda93_at_1581119940_87%20%7C%20head%201%20%7C%20tail%201&earliest=0&latest=now",
@@ -41,7 +41,7 @@ details={
 }
 ```
 
-# Example of our POST request body
+## Example of our POST request body
 ```JSON
 body={
 	"client": "Splunk",

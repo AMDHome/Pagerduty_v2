@@ -1,8 +1,15 @@
+#!/bin/python3
+
 import sys
 import json
-import urllib2
+import urllib.request
+import urllib.error
+import urllib.parse
+import ssl
 
 from fnmatch import fnmatch
+
+SSL_CERT_DIR="/etc/ssl/certs"
 
 # generate the JSON for the incident
 # Details: https://v2.developer.pagerduty.com/docs/events-api-v2 
@@ -46,7 +53,7 @@ def send_notification(details):
 
     # get integration API key
     settings = details.get('configuration')
-    print >> sys.stderr, "DEBUG Sending incident with settings %s" % settings
+    print("DEBUG Sending incident with settings", settings, file=sys.stderr)
 
     url = "https://events.pagerduty.com/v2/enqueue"
     key = settings.get('integration_key_override')
@@ -56,7 +63,7 @@ def send_notification(details):
 
     # check if only the integration key was given
     if not len(key) == 32:
-        print >> sys.stderr, "ERROR Integration KEY must be 32 characters long"
+        print("ERROR Integration KEY must be 32 characters long", file=sys.stderr)
         return False
 
     # delete session key
@@ -64,34 +71,43 @@ def send_notification(details):
 
     # generate incident json
     inc = generate_inc(details, key)
-    body = json.dumps(inc)
+    eventType = inc['event_action']
+    body = json.dumps(inc).encode("utf-8")
+
+    #Ignore Certs
+    ssl._create_default_https_context = ssl._create_unverified_context
+
 
     # send PagerDuty incident info
-    print >> sys.stderr, 'INFO Calling url="%s" with body=%s' % (url, body)
-    req = urllib2.Request(url, body, {"Content-Type": "application/json"})
+    print('INFO Calling url="', url, '" with body=', body, file=sys.stderr)
+    req = urllib.request.Request(url=url, data=body, headers={"Content-Type": "application/json"})
 
     try:
-        res = urllib2.urlopen(req)
-        body = res.read()
-        print >> sys.stderr, "INFO PagerDuty server responded with HTTP status=%d" % res.code
-        print >> sys.stderr, "DEBUG PagerDuty server response: %s" % json.dumps(body)
+        res = urllib.request.urlopen(req)
+        body = res.read().decode("ascii")
+        print("INFO PagerDuty server responded with HTTP status=", res.code, file=sys.stderr)
+        print("DEBUG PagerDuty server response: {:s}".format(json.dumps(body)), file=sys.stderr)
         return 200 <= res.code < 300
-    except urllib2.HTTPError, e:
-        print >> sys.stderr, "ERROR Error sending message: %s (%s)" % (e, str(dir(e)))
-        print >> sys.stderr, "ERROR Server response: %s" % e.read()
+    except urllib.error.HTTPError as e:
+        print("ERROR Error sending message:", e, " (", str(dir(e)), ")", file=sys.stderr)
+        print("ERROR Server response:", e.read(), file=sys.stderr)
         return False
 
 
 
 if __name__ == "__main__":
+
+    sys.stdout = open('/tmp/output', 'w')
+    sys.stderr = open('/tmp/output', 'w')
+
     if len(sys.argv) > 1 and sys.argv[1] == "--execute":
         payload = json.loads(sys.stdin.read())
         success = send_notification(payload)
         if not success:
-            print >> sys.stderr, "FATAL Failed trying to incident alert"
+            print("FATAL Failed trying to incident alert", file=sys.stderr)
             sys.exit(2)
         else:
-            print >> sys.stderr, "INFO Incident alert notification successfully sent"
+            print("INFO Incident alert notification successfully sent", file=sys.stderr)
     else:
-        print >> sys.stderr, "FATAL Unsupported execution mode (expected --execute flag)"
+        print("FATAL Unsupported execution mode (expected --execute flag)", file=sys.stderr)
         sys.exit(1)
