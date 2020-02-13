@@ -1,13 +1,16 @@
 #!/bin/python3
-
 import sys
 import json
 import urllib.request
 import urllib.error
-import splunklib.results as results
+from datetime import datetime
 
-from fnmatch import fnmatch
-
+# This is the file that will store information about the latest successful
+# trigger and resolve requests sent to PagerDuty. If you wish to save the file
+# to another location please edit this variable. 
+# Default location is: $SPLUNK_HOME$/etc/apps/pagerduty_v2/bin/timestamps.json
+PDTriggerFile = "timestamps.json"
+timestamps = {}
 
 
 # generate the JSON for the incident
@@ -54,12 +57,9 @@ def generate_inc(details, key):
 
 
 
-def resolved_checker(inc):
-    return
-
-
-
 def send_notification(details):
+
+    global timestamps
 
     # get integration API key
     settings = details.get('configuration')
@@ -83,9 +83,16 @@ def send_notification(details):
     inc = generate_inc(details, key)
     eventType = inc['event_action']
     body = json.dumps(inc).encode("utf-8")
+    json.dump(inc, open("test.json","w"))
 
-    #if inc['event_action'] == "resolve":
-        #check splunk for last event
+    # test if alert history exists. If not, initialize
+    if not inc['dedup_key'] in timestamps:
+        timestamps[inc['dedup_key']] = {'trigger': '', 'resolve': ''}
+
+    # if event is a resolve, then check if we need to send (truth table in readme)
+    if inc['event_action'] == "resolve":
+        if not timestamps[inc['dedup_key']]['trigger'] < timestamps[inc['dedup_key']]['resolve']:
+            return -1
 
     # Ignore Certs
     #ssl._create_default_https_context = ssl._create_unverified_context
@@ -99,6 +106,7 @@ def send_notification(details):
         body = res.read().decode("utf-8")
         print("INFO PagerDuty server responded with HTTP status = {:d}".format(res.code), file=sys.stderr)
         print("DEBUG PagerDuty server response: {:s}".format(body), file=sys.stderr)
+        timestamps[inc['dedup_key']][eventType] = str(datetime.now())
         return 200 <= res.code < 300, inc['event_action'], inc['dedup_key']
     except urllib.error.HTTPError as e:
         print("ERROR Error sending message: {:s} ({:s})".format(e, str(dir(e))), file=sys.stderr)
@@ -109,17 +117,27 @@ def send_notification(details):
 
 if __name__ == "__main__":
 
-    # sys.stdout = open('/tmp/output', 'w')
-    # sys.stderr = open('/tmp/output', 'w')
+    sys.stdout = open('/tmp/output', 'w')
+    sys.stderr = open('/tmp/output', 'w')
 
     if len(sys.argv) > 1 and sys.argv[1] == "--execute":
         payload = json.loads(sys.stdin.read())
+
+        # open PagerDuty trigger timestamps file
+        try:
+            timestamps = json.load(open(PDTriggerFile, 'r'))
+        except:
+            timestamps = {}
+
         success, action, dedup_key = send_notification(payload)
-        if not success:
+        if success == -1:
+            sys.exit(0)
+        elif not success:
             print("FATAL Failed trying to incident alert", file=sys.stderr)
             sys.exit(2)
         else:
             print("INFO {:s} {:s} successfully sent".format(dedup_key, action), file=sys.stderr)
+            json.dump(timestamps, open(PDTriggerFile,"w"))
             
     else:
         print("FATAL Unsupported execution mode (expected --execute flag)", file=sys.stderr)
