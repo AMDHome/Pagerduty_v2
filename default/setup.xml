@@ -4,10 +4,27 @@
         <text>Configure PagerDuty Incidents</text>
     </block>
 
-    <block title="PagerDuty" endpoint="admin/alert_actions" entity="pagerduty">
+    <block title="PagerDuty Integration Key" endpoint="admin/alert_actions" entity="pagerduty">
         <input field="param.integration_key">
             <label>Integration key</label>
             <type>text</type>
+        </input>
+    </block>
+
+    <block title="PagerDuty Resolve Keyword" endpoint="admin/alert_actions" entity="pagerduty">
+    	<text>To allow Splunk to resolve PagerDuty incidents, we use a keyword in the alert name to specify that a specific alert will send a resolve event instead of a trigger event. Below you can set the keyword you wish to use.</text>
+    	<text>&#x09;&#x09;Ex: Keyword = resolver, Alert Trigger Name = Ping Test, Alert Resolver Name = Ping Test resolver</text>
+        <input field="param.resolve_keyword">
+            <label>Incident Resolve Keyword</label>
+            <type>text</type>
+        </input>
+    </block>
+
+    <block title="PagerDuty Resolve Keyword Location" endpoint="admin/alert_actions" entity="pagerduty">
+        <text>By default the Resolve Keyword should be the last word of your alert name. If you wish to put it in the front, click the checkbox below.</text>
+        <input field="param.resolve_keyword_location">
+            <label>Move Keyword To Front Of Alert Name</label>
+            <type>bool</type>
         </input>
     </block>
 
