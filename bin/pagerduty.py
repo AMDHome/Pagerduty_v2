@@ -5,9 +5,12 @@ import json
 import urllib.request
 import urllib.error
 
-# This is the file that will store information about the latest successful
-# trigger and resolve requests sent to PagerDuty. If you wish to save the file
+import splunklib.client as client
+import splunklib.results as results
 
+import splunk.entity as entity
+
+splunkService = None
 
 # generate the JSON for the incident
 # Details: https://v2.developer.pagerduty.com/docs/events-api-v2 
@@ -43,7 +46,7 @@ def generate_inc(details, settings, key):
         inc['client_url'] = details['results_link']
 
     # computer dedup_key
-    dedup_key = details['search_name'] + " (Server: " + details['result']['host'] + ")"
+    dedup_key = details['search_name']
     if len(dedup_key) > 255:
         dedup_key = dedup_key[0 : 254]
 
@@ -56,13 +59,59 @@ def generate_inc(details, settings, key):
 
 
 
+# gets stored encrypted login credentials
+def getCredentials(sessionKey):
+   try:
+      # list all credentials
+      entities = entity.getEntities(['admin', 'passwords'], namespace='pagerduty_v2',
+                                    owner='nobody', sessionKey=sessionKey)
+   except Exception as e:
+      raise Exception("Could not get %s credentials from splunk. Error: %s"
+                      % (myapp, str(e)))
+
+   # return first set of credentials
+   for i, c in entities.items():
+        return c['username'], c['clear_password']
+
+   raise Exception("No credentials have been found")
+
+
+
+# checks the logs in splunk to determine if incident has been closed by splunk
+# returns True: Closed, no need send resolve, False: send resolve
+def send_check(inc, sessionKey):
+
+    global splunkService
+
+    triggerTime = ""
+    resolveTime = ""
+    search_args = {"earliest_time": "-1q", "latest_time": "now", "output_mode": "json"}
+
+    search_query = "search index=\"pagerduty\" sourcetype=\"trigger.sent\" \"" + inc['dedup_key'] + "\" | head 1"
+    res = json.loads(splunkService.jobs.oneshot(search_query, **search_args).read())
+    
+    if res["results"]:
+        triggerTime = res["results"][0]["_time"]
+
+    search_query = "search index=\"pagerduty\" sourcetype=\"resolve.sent\" \"" + inc['dedup_key'] + "\" | head 1"
+    res = json.loads(splunkService.jobs.oneshot(search_query, **search_args).read())
+    
+    if res["results"]:
+        resolveTime = res["results"][0]["_time"]
+
+    return triggerTime < resolveTime
+
+
+
 def send_notification(details):
 
-    global timestamps
+    global splunkService
+    username, password = getCredentials(details['session_key'])
+    splunkService = client.connect(username=username, password=password)
+    pagerdutyIndex = splunkService.indexes["pagerduty"]
 
     # get integration API key
     settings = details.get('configuration')
-    print("DEBUG Sending incident with settings", settings, file=sys.stderr)
 
     url = "https://events.pagerduty.com/v2/enqueue"
     key = settings.get('integration_key_override')
@@ -76,7 +125,7 @@ def send_notification(details):
         return False, None, None
 
     # generate incident json
-    inc = generate_inc(details, key)
+    inc = generate_inc(details, settings, key)
     eventType = inc['event_action']
     body = json.dumps(inc).encode("utf-8")
     json.dump(inc, open("test.json","w"))
@@ -86,18 +135,15 @@ def send_notification(details):
         if send_check(inc, details['session_key']):
             return -1, None, None
 
-    #ssl._create_default_https_context = ssl._create_unverified_context
-
     # send PagerDuty incident info
     print('DEBUG Calling url="{:s}" with body={:s}'.format(url, body.decode()), file=sys.stderr)
     req = urllib.request.Request(url=url, data=body, headers={"Content-Type": "application/json"})
 
     try:
-        res = urllib.request.urlopen(req, cafile="/etc/pki/tls/certs/ca-bundle.crt")
+        res = urllib.request.urlopen(req)
         body = res.read().decode("utf-8")
-        print("INFO PagerDuty server responded with HTTP status = {:d}".format(res.code), file=sys.stderr)
-        print("DEBUG PagerDuty server response: {:s}".format(body), file=sys.stderr)
-        timestamps[inc['dedup_key']][eventType] = str(datetime.now())
+        srctype = eventType + ".sent"
+        pagerdutyIndex.submit("INFO Successfully " + eventType + "ed incident for " + inc['dedup_key'] + " on PagerDuty", sourcetype=srctype)
         return 200 <= res.code < 300, inc['event_action'], inc['dedup_key']
     except urllib.error.HTTPError as e:
         print("ERROR Error sending message: {:s} ({:s})".format(e, str(dir(e))), file=sys.stderr)
@@ -115,7 +161,7 @@ if __name__ == "__main__":
         payload = json.loads(sys.stdin.read())
         success, action, dedup_key = send_notification(payload)
         if success == -1:
-            print("INFO Cache indicates no open tickets to resolve")
+            print("INFO Cache indicates no open tickets to resolve", file=sys.stderr)
             sys.exit(0)
         elif not success:
             print("FATAL Failed trying to incident alert", file=sys.stderr)
