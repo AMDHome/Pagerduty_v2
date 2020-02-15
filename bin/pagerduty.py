@@ -6,7 +6,6 @@ import urllib.request
 import urllib.error
 
 import splunklib.client as client
-import splunklib.results as results
 
 import splunk.entity as entity
 
@@ -20,7 +19,7 @@ def generate_inc(details, settings, key):
     payload = {}
 
     resolveKeyword = settings.get('resolve_keyword')
-    keywordLocation = settings.get('resolve_keyword_location') # [0: back | 1: front]
+    keywordLocation = int(settings.get('resolve_keyword_location')) # [0: back | 1: front]
 
     # determine if triggering or resolving
     eventType = details['search_name'].rsplit(' ', 1)[1 - keywordLocation]
