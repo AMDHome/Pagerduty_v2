@@ -11,7 +11,8 @@
         </input>
     </block>
 
-    <block title="Read-Only Splunk Username" endpoint="storage/passwords" entity="_new">
+    <block title="PagerDuty Splunk Username" endpoint="storage/passwords" entity="_new">
+        <text>The PagerDuty script needs a splunk account to manage the state of the alerts. For more information, please refer to the Readme.md file.</text>
         <input field="name">
             <label>Username</label>
             <type>text</type>
@@ -26,7 +27,7 @@
 
     <block title="PagerDuty Resolve Keyword" endpoint="admin/alert_actions" entity="pagerduty">
     	<text>To allow Splunk to resolve PagerDuty incidents, we use a keyword in the alert name to specify that a specific alert will send a resolve event instead of a trigger event. Below you can set the keyword you wish to use.</text>
-    	<text>&#x09;&#x09;Ex: Keyword = resolver, Alert Trigger Name = Ping Test, Alert Resolver Name = Ping Test resolver</text>
+    	<text>Ex: Keyword = resolver, Alert Trigger Name = Ping Test, Alert Resolver Name = Ping Test resolver</text>
         <input field="param.resolve_keyword">
             <label>Incident Resolve Keyword</label>
             <type>text</type>
