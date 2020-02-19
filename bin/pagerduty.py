@@ -1,10 +1,12 @@
 #!/bin/python3
-import sys
+import sys, os
 import json
+import time
 
 import urllib.request
 import urllib.error
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 import splunklib.client as client
 
 import splunk.entity as entity
@@ -136,26 +138,52 @@ def send_notification(details):
 
     # send PagerDuty incident info
     print('DEBUG Calling url="{:s}" with body={:s}'.format(url, body.decode()), file=sys.stderr)
-    req = urllib.request.Request(url=url, data=body, headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(url=url, data=body, headers={"Content-Type": "application/json", "Accept": "application/json"})
 
-    try:
-        res = urllib.request.urlopen(req)
-        body = res.read().decode("utf-8")
-        srctype = eventType + ".sent"
-        pagerdutyIndex.submit("INFO Successfully " + eventType + "ed incident for " + inc['dedup_key'] + " on PagerDuty", sourcetype=srctype)
-        return 200 <= res.code < 300, inc['event_action'], inc['dedup_key']
-    except urllib.error.HTTPError as e:
-        print("ERROR Error sending message: {:s} ({:s})".format(e, str(dir(e))), file=sys.stderr)
-        print("ERROR Server response: {:s}".format(e.read()), file=sys.stderr)
-        return False, None, None
+
+    # try to send notification (will try 3 times: Immediately, after 2 seconds, after 4 seconds)
+    # Dont retry on HTTP code 202 (success) or 400 (failed: bad JSON)
+    # retry on all other errors
+    interval = 2
+    lastException = None
+    for _ in range(3):
+        try:
+            res = urllib.request.urlopen(req)
+            body = res.read().decode()
+
+            # Success
+            srctype = eventType + ".sent"
+            eventType += "d" if eventType[-1] == 'e' else "ed"
+            pagerdutyIndex.submit("Successfully " + eventType + " incident for " + inc['dedup_key'] + " on PagerDuty", sourcetype=srctype)
+            return 200 <= res.code < 300, inc['event_action'], inc['dedup_key']
+
+        except urllib.error.HTTPError as e:
+
+            # If HTTP returns error 400 (Bad JSON) just stop
+            if e.code == 400:
+                print("ERROR Server response:", e, "{:s}".format(e.read().decode("utf-8")), file=sys.stderr)
+                srctype = eventType + ".failed"
+                pagerdutyIndex.submit("Failed to " + eventType + " incident for " + inc['dedup_key'] + " on PagerDuty: ERROR 400 (Bad JSON)", sourcetype=srctype)
+                return False, None, None
+
+            lastException = e
+
+        time.sleep(interval)
+        interval *= 2
+
+    # if it gets to here that means the HTTP request failed 3 times.
+    print("ERROR Server response:", lastException, "{:s}".format(lastException.read().decode("utf-8")), file=sys.stderr)
+    srctype = eventType + ".failed"
+    if lastException.code == 429:
+        eMsg = "429 (Too many API calls at a time)"
+    else:
+        eMsg = str(lastException.code) + " (Internal Server Error)"
+    pagerdutyIndex.submit("Failed to " + eventType + " incident for " + inc['dedup_key'] + " on PagerDuty: ERROR " + eMsg, sourcetype=srctype)
+    return False, None, None
 
 
 
 if __name__ == "__main__":
-
-    sys.stdout = open('/tmp/output', 'w')
-    sys.stderr = open('/tmp/error', 'w')
-
     if len(sys.argv) > 1 and sys.argv[1] == "--execute":
         payload = json.loads(sys.stdin.read())
         success, action, dedup_key = send_notification(payload)
@@ -163,10 +191,10 @@ if __name__ == "__main__":
             print("INFO Cache indicates no open tickets to resolve", file=sys.stderr)
             sys.exit(0)
         elif not success:
-            print("FATAL Failed trying to incident alert", file=sys.stderr)
+            print("FATAL Failed trying to send incident alert", file=sys.stderr)
             sys.exit(2)
         else:
-            print("INFO {:s} {:s} successfully sent".format(dedup_key, action), file=sys.stderr)
+            print("DEBUG {:s} {:s} successfully sent".format(dedup_key, action), file=sys.stderr)
             
     else:
         print("FATAL Unsupported execution mode (expected --execute flag)", file=sys.stderr)
