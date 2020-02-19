@@ -1,84 +1,75 @@
 # Pagerduty_v2
 A Custom Pagerduty Integration for splunk
 
-## Examples of `details` passed by Splunk
-``` JSON
-details={
-	"results_link": "http://splunk-test.ucdavis.edu:8000/app/search/search?q=%7Cloadjob%20scheduler__admin__search__RMD5afe10cbbfdadda93_at_1581119940_87%20%7C%20head%201%20%7C%20tail%201&earliest=0&latest=now",
-	"sid": "scheduler__admin__search__RMD5afe10cbbfdadda93_at_1581119940_87",
-	"owner": "admin",
-	"search_uri": "/servicesNS/admin/search/saved/searches/Pagerduty+page+test",
-	"search_name": "Pagerduty page test",
-	"results_file": "/opt/splunk/splunk/var/run/splunk/dispatch/scheduler__admin__search__RMD5afe10cbbfdadda93_at_1581119940_87/per_result_alert/tmp_0.csv.gz",
-	"server_host": "splunk-test.ucdavis.edu",
-	"result": {
-		"_bkt": "monitoringtest~6~783A7230-D599-49B7-8719-7E7EB08CB731",
-		"punct": "_",
-		"_si": ["splunk-test.ucdavis.edu", "monitoringtest"],
-		"sourcetype": "tcp-raw",
-		"host": "128.120.32.134",
-		"eventtype": "",
-		"tag": "",
-		"linecount": "1",
-		"source": "tcp:6000",
-		"_raw": "get payload",
-		"_indextime": "1581119932",
-		"tag::eventtype": "",
-		"timestamp": "none",
-		"_cd": "6:6",
-		"_sourcetype": "tcp-raw",
-		"_time": "1581119932",
-		"splunk_server": "splunk-test.ucdavis.edu",
-		"splunk_server_group": "",
-		"_eventtype_color": "",
-		"index": "monitoringtest",
-		"_kv": "1",
-		"_serial": "0"
-	},
-	"configuration": {"integration_key": "abc123get4me5from6pagerduty7890xyz"},
-	"app": "search",
-	"server_uri": "https://127.0.0.1:8089"
-}
+## Setup
+### Requirements
+In order to use this app, you will need the following:
+
+1. A pagerduty integration key. You can extract it from the Splunk Integration URL
+	- Instructions: https://www.pagerduty.com/docs/guides/splunk-security-integration-guide/
+2. A Splunk user account. Needs to be able to perform searches and post http-simple requests to Splunk.
+3. The pagerduty_v2.tar.gz file that can be found in the releases section of this github.
+
+### Instructions
+1. Log into Splunk and click the gear icon next to `Apps` in the left hand sidebar
+2. Click on `Install app from file` in the upper-right corner
+3. Choose the `pagerduty_v2.tar.gz` file that you downloaded from github and click `Upload` and then `Restart Splunk`
+4. Once Splunk finishes restarting, relog in and go to `Settings` > `Alert Actions` > `Setup PagerDuty`
+5. Fill in the fields in the setup and click save. For more information read the Additional Information (Settings) section below.
+6. Have fun setting up your alerts.
+
+### Additional Information (Settings)
+#### Integration Key
+Make sure you enter your 32 character integration key. The script will not work if you enter the integration URL. You can extract the integration key from the url by copying out the string of characters.
+
+#### Splunk User
+If you try to update your username and account it will produce the following error:
+```
+Encountered the following error while trying to update: Error while posting to url=/servicesNS/nobody/pagerduty_v2/storage/passwords/
+```
+This is an issue with how Splunk handles stored passwords. In order to update the password you will need to delete `$SPLUNK_HOME$/etc/apps/pagerduty_v2/local/passwords.conf` and restart splunk. It is a pain. Sorry. #BlameSplunkNotMe
+
+#### Resolve Keyword
+As Splunk has no good way to tie trigger and resolve alerts together, we do this buy using a keyword in the Alert Name. You can set this keyword to whatever you want. This keyword must be either the first or the last word of the name depending on the Resolve Keyword Location field. 
+
+For Example:
+Let's say you set the resolve keyword to `chicken`.
+The following alerts will trigger and resolve the PagerDuty incident named `Server XYZ is Down` respectively:
+
+```
+Trigger Alert Name: Server XYZ is Down
+Resolve Alert Name: Server XYZ is Down chicken
 ```
 
-## Example of our POST request body
-```JSON
-body={
-	"client": "Splunk",
-	"client_url": "http://splunk-test.ucdavis.edu:8000/app/search/search?q=%7Cloadjob%20scheduler__admin__search__RMD5afe10cbbfdadda93_at_1581124980_618%20%7C%20head%201%20%7C%20tail%201&earliest=0&latest=now",
-	"event_action": "trigger",
-	"dedup_key": "Pagerduty page test (Server: 128.120.32.134)",
-	"payload": {
-		"summary": "128.120.32.134 Pagerduty page test",
-		"custom_details": {
-			"_kv": "1",
-			"_time": "1581124960",
-			"_indextime": "1581124960",
-			"_cd": "6:23",
-			"_si": ["splunk-test.ucdavis.edu", "monitoringtest"],
-			"sourcetype": "tcp-raw",
-			"linecount": "1",
-			"index": "monitoringtest",
-			"_bkt": "monitoringtest~6~783A7230-D599-49B7-8719-7E7EB08CB731",
-			"_eventtype_color": "",
-			"tag::eventtype": "",
-			"splunk_server": "splunk-test.ucdavis.edu",
-			"_serial": "0",
-			"source": "tcp:6000",
-			"punct": "__",
-			"_sourcetype": "tcp-raw",
-			"eventtype": "",
-			"splunk_server_group": "",
-			"_raw": "get payload",
-			"timestamp": "none",
-			"host": "128.120.32.134",
-			"tag": ""
-		},
-		"severity": "critical",
-		"group": "monitoringtest",
-		"source": "128.120.32.134",
-		"component": "tcp-raw"
-	},
-	"routing_key": "abcdefghijklmnopqrstuvwxyz123456"
-}
+This example is for entertainment purposes only. A more realistic keyword would be the word "resolver" but you can put anything you want. If you are not planning to have Splunk resolve your tickets, you can just leave this blank.
+
+#### Resolve Keyword Location
+By default, the keyword is set to be the last word of the alert name. If you wish to put the keyword in the front you can select this checkbox to move it to the front. If we use the same example as above the Alert names would now be:
+
 ```
+Trigger Alert Name: "Server XYZ is Down"
+Resolve Alert Name: "chicken Server XYZ is Down"
+```
+
+## Logs
+This PagerDuty script will log the result of every set of attempts to contact PagerDuty. You can view these in splunk by searching the following:
+```
+index="pagerduty"
+```
+
+You can search the logs for successes or failures by specifying the sourcetype. The valid sourcetypes are: `trigger.sent`, `trigger.failed`, `resolve.sent`, `resolve.failed`. For the failed sourcetypes, The message will tell you exactly the type of failure that occoured. 
+
+Splunk also logs the status everytime it runs the script. To view the Splunk logs for the script, you can search the following
+```
+index=_internal action="pagerduty"
+```
+
+## Notes
+### PagerDuty Index
+This script will create the data index "pagerduty" and put status information to it automatically. You do not need to create it yourself.
+
+### PagerDuty Dedup key
+PagerDuty does not keep track of incidents by the name of the incident. They use something called a deduplication key (dedup key). For our purposes, the alert name will be both the PagerDuty incident name and the dedup key. This means that every alert for every check on every server will need a different alert name. For instance you cannot just create a single Ping Test and Ping Test resolver alert for all of your systems. You will need to create them for each indivisual servers each with a different name. Yes this means you will have a ton of alerts if you are monitoring a lot of machines, but really you shouldn't be using Splunk to monitor servers in the first place.
+
+### Failed To Send Alert
+If something goes wrong with sending the alert to PagerDuty, the script will retry twice (total send attemps = 3). It will try 2 seconds after the initial send and then 4 seconds after the initial send. It will give up after the third attempt to contact PagerDuty fails. You may wish to create an alert to monitor the trigger.failed and resolve.failed sorucetypes and have splunk email you about the failures.
