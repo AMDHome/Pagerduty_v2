@@ -18,6 +18,13 @@ In order to use this app, you will need the following:
 5. Fill in the fields in the setup and click save. For more information read the Additional Information (Settings) section below.
 6. Have fun setting up your alerts.
 
+### Notes On Creating Alerts
+#### Alert Once vs. For each result
+If you have your alert trigger for each result then it will send out multiple pages to PagerDuty. Pagerduty will then log them all and put them into 1 incident. If you set the trigger to only alert once then it will only send the data from the last search result to PagerDuty. If you have multiple search results pop up for your alert you could lose information if you select to only trigger once. 
+
+#### Alerts For Lack of Results
+If you are alerting for the lack of search results then make sure you are very specific with your alert title. As there is no search results, Splunk does not send us any useful information other then the alert name. Make sure you put all relevent information in the alert name or you will end up with a vague incident on PagerDuty
+
 ### Additional Information (Settings)
 #### Integration Key
 Make sure you enter your 32 character integration key. The script will not work if you enter the integration URL. You can extract the integration key from the url by copying out the string of characters.
