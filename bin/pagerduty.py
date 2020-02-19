@@ -67,19 +67,19 @@ def generate_inc(details, settings, key):
 
 # gets stored encrypted login credentials
 def getCredentials(sessionKey):
-   try:
-      # list all credentials
-      entities = entity.getEntities(['admin', 'passwords'], namespace='pagerduty_v2',
-                                    owner='nobody', sessionKey=sessionKey)
-   except Exception as e:
-      raise Exception("Could not get %s credentials from splunk. Error: %s"
-                      % (myapp, str(e)))
+    try:
+        # list all credentials
+        entities = entity.getEntities(['admin', 'passwords'], namespace='pagerduty_v2',
+                                      owner='nobody', sessionKey=sessionKey)
+    except Exception as e:
+        raise Exception("Could not get %s credentials from splunk. Error: %s"
+                        % (myapp, str(e)))
 
    # return first set of credentials
-   for i, c in entities.items():
+    for i, c in entities.items():
         return c['username'], c['clear_password']
 
-   raise Exception("No credentials have been found")
+    raise Exception("No credentials have been found")
 
 
 
