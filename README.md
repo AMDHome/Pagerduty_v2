@@ -16,14 +16,7 @@ In order to use this app, you will need the following:
 3. Choose the `pagerduty_v2.tar.gz` file that you downloaded from github and click `Upload` and then `Restart Splunk`
 4. Once Splunk finishes restarting, relog in and go to `Settings` > `Alert Actions` > `Setup PagerDuty`
 5. Fill in the fields in the setup and click save. For more information read the Additional Information (Settings) section below.
-6. Have fun setting up your alerts.
-
-### Notes On Creating Alerts
-#### Alert Once vs. For each result
-If you have your alert trigger for each result then it will send out multiple pages to PagerDuty. Pagerduty will then log them all and put them into 1 incident. If you set the trigger to only alert once then it will only send the data from the last search result to PagerDuty. If you have multiple search results pop up for your alert you could lose information if you select to only trigger once. 
-
-#### Alerts For Lack of Results
-If you are alerting for the lack of search results then make sure you are very specific with your alert title. As there is no search results, Splunk does not send us any useful information other then the alert name. Make sure you put all relevent information in the alert name or you will end up with a vague incident on PagerDuty
+6. Have fun setting up your alerts. (Please read the Notes On Creating Alerts Section below)
 
 ### Additional Information (Settings)
 #### Integration Key
@@ -57,6 +50,13 @@ By default, the keyword is set to be the last word of the alert name. If you wis
 Trigger Alert Name: "Server XYZ is Down"
 Resolve Alert Name: "chicken Server XYZ is Down"
 ```
+
+## Notes On Creating Alerts
+### Alert Once vs. For each result
+If you have your alert trigger for each result then it will send out multiple pages to PagerDuty. Pagerduty will then log them all and put them into 1 incident. If you set the trigger to only alert once then it will only send the data from the last search result to PagerDuty. If you have multiple search results pop up for your alert you could lose information if you select to only trigger once. 
+
+### Alerts For Lack of Results
+If you are alerting for the lack of search results then make sure you are very specific with your alert title. As there is no search results, Splunk does not send us any useful information other then the alert name. Make sure you put all relevent information in the alert name or you will end up with a vague incident on PagerDuty
 
 ## Logs
 This PagerDuty script will log the result of every set of attempts to contact PagerDuty. You can view these in splunk by searching the following:
