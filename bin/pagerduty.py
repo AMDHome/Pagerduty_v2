@@ -38,13 +38,19 @@ def generate_inc(details, settings, key):
     else:
         # add trigger specific parameters
         eventType = "trigger"
-   
-        payload['summary'] = details['result']['host'] + " " + details['search_name']
-        payload['severity'] = "critical"
-        payload['source'] = details['result']['host']
-        payload['component'] = details['result']['_sourcetype']
-        payload['group'] = details['result']['index']
+
+        # if there are results   
+        if details['result']:
+            payload['summary'] = details['result']['host'] + " " + details['search_name']
+            payload['source'] = details['result']['host']
+            payload['component'] = details['result']['_sourcetype']
+            payload['group'] = details['result']['index']
+        else:
+            payload['summary'] = details['search_name']
+            payload['source'] = "unknown"
+
         payload['custom_details'] = details['result']
+        payload['severity'] = "critical"
 
         # create incident JSON
         inc['payload'] = payload
