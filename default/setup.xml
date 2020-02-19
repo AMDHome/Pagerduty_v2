@@ -11,7 +11,7 @@
         </input>
     </block>
 
-    <block title="PagerDuty Splunk Username" endpoint="storage/passwords" entity="_new">
+    <block title="PagerDuty Splunk User" endpoint="storage/passwords" entity="_new">
         <text>The PagerDuty script needs a splunk account to manage the state of the alerts. For more information, please refer to the Readme.md file.</text>
         <input field="name">
             <label>Username</label>

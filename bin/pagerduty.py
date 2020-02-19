@@ -23,13 +23,18 @@ def generate_inc(details, settings, key):
     resolveKeyword = settings.get('resolve_keyword')
     keywordLocation = int(settings.get('resolve_keyword_location')) # [0: back | 1: front]
 
+    if keywordLocation == 0:
+        splitName = details['search_name'].rsplit(' ', 1)
+    else:
+        splitName = details['search_name'].split(' ', 1)
+
     # determine if triggering or resolving
-    eventType = details['search_name'].rsplit(' ', 1)[1 - keywordLocation]
+    eventType = splitName[1 - keywordLocation]
 
     # create incident JSON
     if eventType == resolveKeyword:
         eventType = "resolve"
-        details['search_name'] = details['search_name'].rsplit(' ', 1)[keywordLocation]
+        details['search_name'] = splitName[keywordLocation]
     else:
         # add trigger specific parameters
         eventType = "trigger"
